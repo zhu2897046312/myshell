@@ -13,6 +13,23 @@ void list_environment_variables();
 void print_help();
 void io_redirect(char* args[]);
 
+// // 0 false  1 true
+// int is_cd();
+// int is_ls();
+// int is_environ();
+// int is_help();
+// int is_echo();
+// int is_quit();
+// int is_mkdir();
+// int is_rmdir();
+// int is_rm();
+// int is_cp();
+// int is_rm();
+// int is_cat();
+// int is_clear();
+
+
+
 int main() {
     char input[1024];
     char cmd[256];
