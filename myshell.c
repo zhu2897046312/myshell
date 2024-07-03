@@ -9,25 +9,39 @@
 // Function prototypes
 void parse_command(char* command, char* cmd, char* args[]);
 void execute_command(char* cmd, char* args[]);
+int get_command_type(const char* cmd);
 void list_environment_variables();
 void print_help();
 void io_redirect(char* args[]);
 
-// // 0 false  1 true
-// int is_cd();
-// int is_ls();
-// int is_environ();
-// int is_help();
-// int is_echo();
-// int is_quit();
-// int is_mkdir();
-// int is_rmdir();
-// int is_rm();
-// int is_cp();
-// int is_rm();
-// int is_cat();
-// int is_clear();
+// CMD-TYPE
+const int CMD_CD = 1;
+const int CMD_LS = 2;
+const int CMD_ENVIRON = 3;
+const int CMD_HELP = 4;
+const int CMD_ECHO = 5;
+const int CMD_QUIT = 6;
+const int CMD_MKDIR = 7;
+const int CMD_RMDIR = 8;
+const int CMD_RM = 9;
+const int CMD_CP = 10;
+const int CMD_CAT = 11;
+const int CMD_CLEAR = 12;
+const int CMD_TOUCH = 13;
 
+void execute_cmd_cd(char* args[]);
+void execute_cmd_ls(char* args[]);
+void execute_cmd_environ(char* args[]);
+void execute_cmd_help(char* args[]);
+void execute_cmd_echo(char* args[]);
+void execute_cmd_quit(char* args[]);
+void execute_cmd_mkdir(char* args[]);
+void execute_cmd_rmdir(char* args[]);
+void execute_cmd_rm(char* args[]);
+void execute_cmd_cp(char* args[]);
+void execute_cmd_cat(char* args[]);
+void execute_cmd_clear(char* args[]);
+void execute_cmd_touch(char* args[]);
 
 
 int main() {
@@ -40,7 +54,7 @@ int main() {
         // Get current working directory
         if (getcwd(cwd, sizeof(cwd)) != NULL) {
             // Print shell prompt with current directory
-            printf("%s> ", cwd);
+            printf("\033[34m%s\033[0m> ", cwd);
         } else {
             perror("getcwd");
             exit(1);
@@ -83,114 +97,71 @@ void parse_command(char* command, char* cmd, char* args[]) {
     args[i] = NULL;
 }
 
+// Get command type
+int get_command_type(const char* cmd) {
+    if (strcmp(cmd, "cd") == 0) return CMD_CD;
+    if (strcmp(cmd, "ls") == 0) return CMD_LS;
+    if (strcmp(cmd, "environ") == 0) return CMD_ENVIRON;
+    if (strcmp(cmd, "help") == 0) return CMD_HELP;
+    if (strcmp(cmd, "echo") == 0) return CMD_ECHO;
+    if (strcmp(cmd, "quit") == 0) return CMD_QUIT;
+    if (strcmp(cmd, "mkdir") == 0) return CMD_MKDIR;
+    if (strcmp(cmd, "rmdir") == 0) return CMD_RMDIR;
+    if (strcmp(cmd, "rm") == 0) return CMD_RM;
+    if (strcmp(cmd, "cp") == 0) return CMD_CP;
+    if (strcmp(cmd, "cat") == 0) return CMD_CAT;
+    if (strcmp(cmd, "clear") == 0) return CMD_CLEAR;
+    if (strcmp(cmd, "touch") == 0) return CMD_TOUCH;
+    return -1; // Unknown command
+}
+
 // Execute the given command with arguments
 void execute_command(char* cmd, char* args[]) {
-    if (strcmp(cmd, "cd") == 0) {
-        if (args[1] != NULL) {
-            if (chdir(args[1]) != 0) {
-                perror("cd");
-            }
-        } else {
-            printf("Usage: cd [directory]\n");
-        }
-    } else if (strcmp(cmd, "environ") == 0) {
-        list_environment_variables();
-    } else if (strcmp(cmd, "ls") == 0) {
-        char* dir = ".";
-        if (args[1] != NULL) {
-            dir = args[1];
-        }
-        DIR* dp = opendir(dir);
-        if (dp != NULL) {
-            struct dirent* entry;
-            while ((entry = readdir(dp))) {
-                printf("%s\n", entry->d_name);
-            }
-            closedir(dp);
-        } else {
-            perror("opendir");
-        }
-    } else if (strcmp(cmd, "help") == 0) {
-        print_help();
-    } else if (strcmp(cmd, "echo") == 0) {
-        int j = 1;
-        while (args[j] != NULL) {
-            printf("%s ", args[j++]);
-        }
-        printf("\n");
-    } else if (strcmp(cmd, "quit") == 0) {
-        exit(0);
-    } else if (strcmp(cmd, "mkdir") == 0) {
-        if (args[1] != NULL) {
-            if (mkdir(args[1], 0777) != 0) {
-                perror("mkdir");
-            }
-        } else {
-            printf("Usage: mkdir [directory]\n");
-        }
-    } else if (strcmp(cmd, "rmdir") == 0) {
-        if (args[1] != NULL) {
-            if (rmdir(args[1]) != 0) {
-                perror("rmdir");
-            }
-        } else {
-            printf("Usage: rmdir [directory]\n");
-        }
-    } else if (strcmp(cmd, "rm") == 0) {
-        if (args[1] != NULL) {
-            if (unlink(args[1]) != 0) {
-                perror("rm");
-            }
-        } else {
-            printf("Usage: rm [file]\n");
-        }
-    } else if (strcmp(cmd, "cp") == 0) {
-        if (args[1] != NULL && args[2] != NULL) {
-            int src_fd = open(args[1], O_RDONLY);
-            if (src_fd == -1) {
-                perror("open");
-                return;
-            }
-            int dest_fd = open(args[2], O_WRONLY | O_CREAT | O_TRUNC, 0664);
-            if (dest_fd == -1) {
-                perror("open");
-                close(src_fd);
-                return;
-            }
-            char buffer[1024];
-            ssize_t bytes;
-            while ((bytes = read(src_fd, buffer, sizeof(buffer))) > 0) {
-                if (write(dest_fd, buffer, bytes) != bytes) {
-                    perror("write");
-                    break;
-                }
-            }
-            close(src_fd);
-            close(dest_fd);
-        } else {
-            printf("Usage: cp [source] [destination]\n");
-        }
-    } else if (strcmp(cmd, "cat") == 0) {
-        if (args[1] != NULL) {
-            int fd = open(args[1], O_RDONLY);
-            if (fd == -1) {
-                perror("open");
-                return;
-            }
-            char buffer[1024];
-            ssize_t bytes;
-            while ((bytes = read(fd, buffer, sizeof(buffer))) > 0) {
-                if (write(STDOUT_FILENO, buffer, bytes) != bytes) {
-                    perror("write");
-                    break;
-                }
-            }
-            close(fd);
-        } else {
-            printf("Usage: cat [file]\n");
-        }
-    } else {
-        printf("Command not found: %s\n", cmd);
+    int cmd_type = get_command_type(cmd);
+    
+    switch (cmd_type) {
+        case CMD_CD:
+            execute_cmd_cd(args);
+            break;
+        case CMD_LS:
+            execute_cmd_ls(args);
+            break;
+        case CMD_ENVIRON:
+            execute_cmd_environ(args);
+            break;
+        case CMD_HELP:
+            execute_cmd_help(args);
+            break;
+        case CMD_ECHO:
+            execute_cmd_echo(args);
+            break;
+        case CMD_QUIT:
+            execute_cmd_quit(args);
+            break;
+        case CMD_MKDIR:
+            execute_cmd_mkdir(args);
+            break;
+        case CMD_RMDIR:
+            execute_cmd_rmdir(args);
+            break;
+        case CMD_RM:
+            execute_cmd_rm(args);
+            break;
+        case CMD_CP:
+            execute_cmd_cp(args);
+            break;
+        case CMD_CAT:
+            execute_cmd_cat(args);
+            break;
+        case CMD_CLEAR:
+            execute_cmd_clear(args);
+            break;
+        case CMD_TOUCH:
+        execute_cmd_touch(args);
+            break;
+        default:
+            printf("Command not found: %s\n", cmd);
+            break;
     }
 
     // Handle I/O redirection if '>' or '<' are present in arguments
@@ -221,6 +192,7 @@ void print_help() {
     printf("rm [file]         Remove a file\n");
     printf("cp [source] [destination] Copy a file\n");
     printf("cat [file]        Display file content\n");
+    printf("clear             Clear the screen\n");
 }
 
 // Handle I/O redirection
@@ -247,7 +219,9 @@ void io_redirect(char* args[]) {
             }
         } else if (strcmp(args[i], "<") == 0) {
             if (args[i + 1] != NULL) {
-                int fd = open(args[i + 1], O_RDONLY);
+                int fd
+
+ = open(args[i + 1], O_RDONLY);
                 if (fd == -1) {
                     perror("open");
                     return;
@@ -265,5 +239,136 @@ void io_redirect(char* args[]) {
             }
         }
         i++;
+    }
+}
+
+void execute_cmd_cd(char* args[]){
+    if (args[1] != NULL) {
+        if (chdir(args[1]) != 0) {
+            perror("cd");
+        }
+    } else {
+        printf("Usage: cd [directory]\n");
+    }
+}
+void execute_cmd_ls(char* args[]){
+    char* dir = ".";
+    if (args[1] != NULL) {
+        dir = args[1];
+    }
+    DIR* dp = opendir(dir);
+    if (dp != NULL) {
+        struct dirent* entry;
+        while ((entry = readdir(dp))) {
+            printf("%s\n", entry->d_name);
+        }
+        closedir(dp);
+    } else {
+        perror("opendir");
+    }
+}
+void execute_cmd_environ(char* args[]){
+    list_environment_variables();
+}
+void execute_cmd_help(char* args[]){
+    print_help();
+}
+void execute_cmd_echo(char* args[]){
+    int j = 1;
+    while (args[j] != NULL) {
+        printf("%s ", args[j++]);
+    }
+    printf("\n");
+}
+void execute_cmd_quit(char* args[]){
+    exit(0);
+}
+void execute_cmd_mkdir(char* args[]){
+    if (args[1] != NULL) {
+        if (mkdir(args[1], 0777) != 0) {
+            perror("mkdir");
+        }
+    } else {
+        printf("Usage: mkdir [directory]\n");
+    }
+}
+void execute_cmd_rmdir(char* args[]){
+    if (args[1] != NULL) {
+        if (rmdir(args[1]) != 0) {
+            perror("rmdir");
+        }
+    } else {
+        printf("Usage: rmdir [directory]\n");
+    }
+}
+void execute_cmd_rm(char* args[]){
+    if (args[1] != NULL) {
+        if (unlink(args[1]) != 0) {
+            perror("rm");
+        }
+    } else {
+        printf("Usage: rm [file]\n");
+    }
+}
+void execute_cmd_cp(char* args[]){
+    if (args[1] != NULL && args[2] != NULL) {
+        int src_fd = open(args[1], O_RDONLY);
+        if (src_fd == -1) {
+            perror("open");
+            return;
+        }
+        int dest_fd = open(args[2], O_WRONLY | O_CREAT | O_TRUNC, 0664);
+        if (dest_fd == -1) {
+            perror("open");
+            close(src_fd);
+            return;
+        }
+        char buffer[1024];
+        ssize_t bytes;
+        while ((bytes = read(src_fd, buffer, sizeof(buffer))) > 0) {
+            if (write(dest_fd, buffer, bytes) != bytes) {
+                perror("write");
+                break;
+            }
+        }
+        close(src_fd);
+        close(dest_fd);
+    } else {
+        printf("Usage: cp [source] [destination]\n");
+    }
+}
+void execute_cmd_cat(char* args[]){
+    if (args[1] != NULL) {
+        int fd = open(args[1], O_RDONLY);
+        if (fd == -1) {
+            perror("open");
+            return;
+        }
+        char buffer[1024];
+        ssize_t bytes;
+        while ((bytes = read(fd, buffer, sizeof(buffer))) > 0) {
+            if (write(STDOUT_FILENO, buffer, bytes) != bytes) {
+                perror("write");
+                break;
+            }
+        }
+        close(fd);
+    } else {
+        printf("Usage: cat [file]\n");
+    }
+}
+void execute_cmd_clear(char* args[]){
+    printf("\033[H\033[J");
+}
+void execute_cmd_touch(char* args[]){
+    if (args[1] != NULL) {
+        int fd = open(args[1], O_WRONLY | O_CREAT, 0664);
+        if (fd == -1) {
+            perror("touch");
+            return;
+        }
+        close(fd);
+    } else {
+        printf("Usage: touch [file]\n");
     }
 }
