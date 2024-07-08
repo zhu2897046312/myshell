@@ -135,57 +135,70 @@ int get_command_type(const char* cmd) {
 // Execute the given command with arguments
 void execute_command(char* cmd, char* args[]) {
     int cmd_type = get_command_type(cmd);
-    
-    switch (cmd_type) {
-        case CMD_CD:
+
+    // Handle built-in commands in the parent process
+    if (cmd_type == CMD_CD || cmd_type == CMD_QUIT) {
+        if (cmd_type == CMD_CD) {
             execute_cmd_cd(args);
-            break;
-        case CMD_LS:
-            execute_cmd_ls(args);
-            break;
-        case CMD_ENVIRON:
-            execute_cmd_environ(args);
-            break;
-        case CMD_HELP:
-            execute_cmd_help(args);
-            break;
-        case CMD_ECHO:
-            execute_cmd_echo(args);
-            break;
-        case CMD_QUIT:
+        } else if (cmd_type == CMD_QUIT) {
             execute_cmd_quit(args);
-            break;
-        case CMD_MKDIR:
-            execute_cmd_mkdir(args);
-            break;
-        case CMD_RMDIR:
-            execute_cmd_rmdir(args);
-            break;
-        case CMD_RM:
-            execute_cmd_rm(args);
-            break;
-        case CMD_CP:
-            execute_cmd_cp(args);
-            break;
-        case CMD_CAT:
-            execute_cmd_cat(args);
-            break;
-        case CMD_CLEAR:
-            execute_cmd_clear(args);
-            break;
-        case CMD_TOUCH:
-            execute_cmd_touch(args);
-            break;
-        case CMD_GREP:
-            execute_cmd_grep(args);
-            break;
-        default:
-            printf("Command not found: %s\n", cmd);
-            break;
+        }
+        return;
     }
 
-    // Handle I/O redirection if '>' or '<' are present in arguments
-    io_redirect(args);
+    // Fork a child process to handle external commands and I/O redirection
+    pid_t pid = fork();
+    if (pid == 0) { // Child process
+        io_redirect(args);
+
+        switch (cmd_type) {
+            case CMD_LS:
+                execute_cmd_ls(args);
+                break;
+            case CMD_ENVIRON:
+                execute_cmd_environ(args);
+                break;
+            case CMD_HELP:
+                execute_cmd_help(args);
+                break;
+            case CMD_ECHO:
+                execute_cmd_echo(args);
+                break;
+            case CMD_MKDIR:
+                execute_cmd_mkdir(args);
+                break;
+            case CMD_RMDIR:
+                execute_cmd_rmdir(args);
+                break;
+            case CMD_RM:
+                execute_cmd_rm(args);
+                break;
+            case CMD_CP:
+                execute_cmd_cp(args);
+                break;
+            case CMD_CAT:
+                execute_cmd_cat(args);
+                break;
+            case CMD_CLEAR:
+                execute_cmd_clear(args);
+                break;
+            case CMD_TOUCH:
+                execute_cmd_touch(args);
+                break;
+            case CMD_GREP:
+                execute_cmd_grep(args);
+                break;
+            default:
+                printf("Command not found: %s\n", cmd);
+                break;
+        }
+        exit(0); // Exit the child process after command execution
+    } else if (pid > 0) { // Parent process
+        // Wait for the child process to complete
+        wait(NULL);
+    } else {
+        perror("fork");
+    }
 }
 
 // List all environment variables
